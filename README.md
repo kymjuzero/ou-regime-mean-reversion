@@ -126,7 +126,10 @@ Outputs:
 
 ### File
 
-- `forward.py`: Regime classification + plotting  
+- `forward.py`: Regime classification + plotting
+
+- <img width="2992" height="1800" alt="image" src="https://github.com/user-attachments/assets/6d9817e4-3c26-41c0-8a44-f98fcfeebe51" />
+
 
 ---
 
