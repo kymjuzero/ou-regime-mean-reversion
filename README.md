@@ -157,7 +157,9 @@ This combines the OU model with regime switching.
 
 ### File
 
-- `run_regime_ou.py`: OU model executed only inside MR segments  
+- `run_regime_ou.py`: OU model executed only inside MR segments
+- <img width="1976" height="1170" alt="image" src="https://github.com/user-attachments/assets/a51435cd-d943-4f09-864f-2d7f79ba622f" />
+
 
 ---
 
@@ -173,7 +175,8 @@ This produces a **hybrid Mean Reversion + Trend Following system**.
 
 ### File
 
-- `withTF.py`: OU in MR regimes + long TF overlay  
+- `withTF.py`: OU in MR regimes + long TF overlay
+- <img width="997" height="590" alt="Screenshot 2025-11-26 at 11 36 26 AM" src="https://github.com/user-attachments/assets/38220be6-1749-4184-8f11-2589b449efc8" />
 
 ---
 
