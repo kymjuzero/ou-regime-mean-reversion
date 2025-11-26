@@ -1,268 +1,230 @@
-Ornstein-Uhlenbeck Process - Mean Reversion Trading Strategy
+# Ornstein–Uhlenbeck Process & Regime Switching Models  
+Combined Mean Reversion, Trend Following, and OU-Based Trading Strategies
 
-Implementation of the Ornstein-Uhlenbeck (OU) process for mean reversion trading with parameter estimation and trading signal generation. Based on QuestDB's OU Process Guide
-.
+This repository contains three major components:
 
-Overview
+1. **Ornstein–Uhlenbeck (OU) Mean Reversion Model**  
+2. **Regime Switching Model (Mean Reversion vs. Trend Following)**  
+3. **OU Process executed only inside Mean-Reverting regimes**, with optional **Trend-Following overlay**
+
+---
+
+## 1. Ornstein–Uhlenbeck Process – Mean Reversion Trading Strategy
+
+Implementation of the Ornstein–Uhlenbeck (OU) process for mean reversion trading with parameter estimation and trading signal generation.  
+Based on [QuestDB's OU Process Guide](https://questdb.com/glossary/ornstein-uhlenbeck-process-for-mean-reversion/).
+
+### Overview
 
 The OU process models mean-reverting behavior:
 
+```
 dX_t = θ(μ - X_t)dt + σdW_t
-
-
-Where:
-
-θ (theta): Mean reversion speed
-
-μ (mu): Long-term mean level
-
-σ (sigma): Volatility
-
-dW_t: Wiener process increment
-
-Strategy Logic
-
-Trading signals based on deviations from mean using stationary variance:
-
-SELL Signal: price > μ + k × σ_stationary
-
-BUY Signal: price < μ - k × σ_stationary
-
-HOLD Signal: price within ±k × σ_stationary
+```
 
 Where:
 
+- **θ (theta)**: Mean reversion speed  
+- **μ (mu)**: Long-term mean level  
+- **σ (sigma)**: Volatility  
+- **dW_t**: Wiener process increment  
+
+### Strategy Logic
+
+Trading signals based on deviations from the mean using stationary variance:
+
+- **SELL Signal**: price > μ + k × σ_stationary  
+- **BUY Signal**: price < μ − k × σ_stationary  
+- **HOLD Signal**: price within ±k × σ_stationary  
+
+Where:
+
+```
 σ_stationary = √(σ² / (2θ))
+```
 
 k = threshold multiplier (default: 2.0)
 
-Files
+### Files
 
-ou_estimator.py: Parameter estimation (MLE, regression, OLS)
+- `ou_estimator.py`: Parameter estimation (MLE, regression, OLS)  
+- `ou_process.py`: OU simulation  
+- `trading_strategy.py`: OU trading logic  
+- `parameter_analysis.py`: Step-by-step calculations  
+- `DERIVATION.md`: Mathematical derivation  
 
-ou_process.py: OU simulation
+### Parameter Estimation
 
-trading_strategy.py: OU trading signal generator
+**Theta (θ)**  
+```
+θ = -ln(ρ) / Δt
+```
 
-parameter_analysis.py: Full OU workflow
+**Mu (μ)**  
+```
+μ = (1/n) Σ X_i
+```
 
-DERIVATION.md: Mathematical derivation
+**Sigma (σ)** (MLE)  
+```
+σ² = (2θ / [n(1 - e^(-2θΔt))]) Σ [X_{i+1} - X_i - μ(1 − e^(-θΔt))]²
+```
 
-Regime Switching Model – Trend-Following vs Mean-Reverting Classification
+### Stationary Variance
 
-The regime-switching model identifies whether the market is currently trend-following (TF) or mean-reverting (MR) using a rolling AR(1) model on log returns. This regime information is later used to restrict OU trading to true mean-reverting environments.
+```
+σ_stationary = √(σ² / (2θ))
+z = (X_t − μ) / σ_stationary
+```
 
-Overview
+### Signal Rules
 
-We estimate a rolling AR(1) process:
+- **SELL**: z > 2.0  
+- **BUY**: z < −2.0  
+- **HOLD**: −2.0 ≤ z ≤ 2.0  
 
-r_t = α + ϕ r_{t-1} + ε_t
+### Mathematical Properties
 
+**Half-Life**  
+```
+t_{1/2} = ln(2) / θ
+```
 
-Interpretation of the AR(1) coefficient:
+**Stationary Variance**  
+```
+Var_stationary = σ² / (2θ)
+```
 
-ϕ > 0 → Trend-Following (TF)
+---
 
-ϕ < 0 → Mean-Reverting (MR)
+## 2. Regime Switching Model (AR(1) Mean Reversion vs. Trend Following)
 
-|ϕ| small → Neutral
+This model classifies market regimes using a rolling AR(1) estimation on log returns.
 
-Default configuration:
+### Methodology
 
-Rolling window: 20 days
+We estimate a rolling AR(1):
 
-Threshold: ±0.05
+```
+r_t = ϕ r_{t-1} + ε_t
+```
 
-A forward shift is applied so that the regime detected at time t is used for trading at t+1, preventing look-ahead bias.
+Interpretation:
 
-Files
+- **ϕ < 0 → Mean Reverting (MR)**  
+- **ϕ > 0 → Trend Following (TF)**  
 
-forward.py: Rolling AR(1) regime classification
+Parameters:
 
-Computes φ for each window
+- Rolling window: **20 days**  
+- Regime label assigned to each date  
 
-Labels: MR, TF, or Neutral
+Outputs:
 
-Returns a regime time series suitable for trading
+- Regime label per day  
+- MR and TF visualization on price series  
 
-Usage
-python3 forward.py
+### File
 
+- `forward.py`: Regime classification + plotting  
 
-Produces:
+---
 
-AR(1) coefficient series
+## 3. OU Trading Inside Mean-Reverting Regimes  
+(Regime-Filtered OU Trading)
 
-Vector of MR/TF/Neutral labels
+This combines the OU model with regime switching.
 
-Regime plot overlayed on price (if enabled)
+**Only run OU trades when at least 3 consecutive MR signals are detected.**
 
-OU Process Applied to Mean-Reverting Regimes
+### Entry Logic
 
-A more robust trading approach is to apply the OU mean-reversion strategy only during MR regimes, as detected by the AR(1) model. This prevents OU trades in trending environments where mean reversion is unlikely to hold.
+**Short Entry (Mean Reversion Sell):**
+- MR streak ≥ 3  
+- price ≥ μ + σ  
 
-Overview
+**Long Entry (Mean Reversion Buy):**
+- MR streak ≥ 3  
+- price ≤ μ − σ  
 
-The OU strategy is activated only when:
+### Exit Rule
 
-MR_streak ≥ 3
+- Short exit: price → μ + 0.5σ  
+- Long exit: price → μ − 0.5σ  
 
+### File
 
-This ensures the market has shown consistent mean-reversion behavior before entering OU trades.
+- `run_regime_ou.py`: OU model executed only inside MR segments  
 
-Methodology
+---
 
-Run regime detection (forward.py)
+## 4. Trend-Following Overlay (Hybrid MR + TF Strategy)
 
-Track MR streak length
+When the regime is TF, the strategy can:
 
-When MR_streak ≥ 3:
+- Enter **long**
+- Hold until TF regime ends
+- Combine with OU MR trading
 
-Fit a rolling OU model (40-day default)
+This produces a **hybrid Mean Reversion + Trend Following system**.
 
-Compute μ, σ, θ
+### File
 
-Compute stationary σ
+- `withTF.py`: OU in MR regimes + long TF overlay  
 
-Compute z-scores
+---
 
-Use dynamic thresholding:
+## Installation
 
-k = 80th percentile of |z| over the window
-
-Generate trades:
-
-Short when price > μ + kσ
-
-Long when price < μ – kσ
-
-Exit trades when:
-
-Price reverts halfway to μ, or
-
-Market exits MR regime
-
-Files
-
-run_regime_ou.py: OU applied only in MR regimes
-
-Outputs returns, Sharpe, drawdown
-
-Shows a full trade log (entry, exit, side, pnl)
-
-Usage
-python3 run_regime_ou.py
-
-Hybrid Strategy – OU in MR Regimes + Long in TF Regimes
-
-This model adapts trading behavior to the market structure:
-
-Use OU mean-reversion during MR periods
-
-Hold a long trend-following position during TF periods
-
-Stay flat during neutral periods
-
-This produces a strategy that performs well in both trending and reverting markets.
-
-Overview
-
-Regime → Action:
-
-MR → OU trading
-
-TF → Always long
-
-Neutral → No position
-
-This hybrid approach generally produces smoother equity curves and better Sharpe ratios.
-
-Example Results (USD/CAD – 6 months)
-
-Hybrid Strategy:
-
-Total return: 2.23%
-
-Sharpe: 1.50
-
-Max drawdown: -1.27%
-
-4 OU trades, 75% win rate
-
-Buy & Hold:
-
-Total return: 2.54%
-
-Sharpe: 1.17
-
-Max drawdown: -2.01%
-
-Files
-
-withTF.py: Hybrid OU(MR) + long(TF) strategy
-
-Includes full backtest statistics
-
-Prints trade log and equity curve
-
-Usage
-python3 withTF.py
-
-Project Structure
-Mean-Reversion-Strats/
-│
-├── ou_estimator.py
-├── ou_process.py
-├── trading_strategy.py
-├── parameter_analysis.py
-│
-├── forward.py
-├── run_regime_ou.py
-├── withTF.py
-│
-├── DERIVATION.md
-├── requirements.txt
-└── README.md
-
-Quick Start
-
-Install packages:
-
+```
 pip install -r requirements.txt
+```
 
+Requires Python 3.7+.
 
-Run pure OU demo:
+---
 
+## Usage
+
+### OU Process Analysis
+
+```
 python3 parameter_analysis.py
+```
 
+### Regime Switching
 
-Run regime classifier:
-
+```
 python3 forward.py
+```
 
+### OU in MR Regimes
 
-Run OU only in MR:
-
+```
 python3 run_regime_ou.py
+```
 
+### OU in MR + TF Long Strategy
 
-Run hybrid OU + TF:
-
+```
 python3 withTF.py
+```
 
-Troubleshooting
+---
 
-ModuleNotFoundError
-Install dependencies:
+## Troubleshooting
 
+**ModuleNotFoundError**  
+```
 pip install -r requirements.txt
+```
 
+**No trades executing**
+- Reduce OU thresholds  
+- Reduce MR streak requirement  
+- Increase rolling AR window  
 
-python3 not found
-Use:
+**Plots not showing**
+- Ensure PNG files save in working directory  
 
-python parameter_analysis.py
-
-
-Plots not saving
-Check working directory for PNG outputs.
+---
