@@ -1,160 +1,268 @@
-# Ornstein-Uhlenbeck Process - Mean Reversion Trading Strategy
+Ornstein-Uhlenbeck Process - Mean Reversion Trading Strategy
 
-Implementation of the Ornstein-Uhlenbeck (OU) process for mean reversion trading with parameter estimation and trading signal generation. Based on [QuestDB's OU Process Guide](https://questdb.com/glossary/ornstein-uhlenbeck-process-for-mean-reversion/).
+Implementation of the Ornstein-Uhlenbeck (OU) process for mean reversion trading with parameter estimation and trading signal generation. Based on QuestDB's OU Process Guide
+.
 
-## Overview
+Overview
 
 The OU process models mean-reverting behavior:
 
-```
 dX_t = θ(μ - X_t)dt + σdW_t
-```
+
 
 Where:
-- **θ** (theta): Mean reversion speed
-- **μ** (mu): Long-term mean level
-- **σ** (sigma): Volatility
-- **dW_t**: Wiener process increment
 
-## Strategy Logic
+θ (theta): Mean reversion speed
+
+μ (mu): Long-term mean level
+
+σ (sigma): Volatility
+
+dW_t: Wiener process increment
+
+Strategy Logic
 
 Trading signals based on deviations from mean using stationary variance:
 
-- **SELL Signal**: price > μ + k × σ_stationary
-- **BUY Signal**: price < μ - k × σ_stationary
-- **HOLD Signal**: price within ±k × σ_stationary
+SELL Signal: price > μ + k × σ_stationary
+
+BUY Signal: price < μ - k × σ_stationary
+
+HOLD Signal: price within ±k × σ_stationary
 
 Where:
-- σ_stationary = √(σ² / (2θ))
-- k = threshold multiplier (default: 2.0)
 
-## Files
-
-- `ou_estimator.py`: Parameter estimation (MLE, regression, OLS methods)
-- `ou_process.py`: OU process simulation
-- `trading_strategy.py`: Trading strategy with signal generation
-- `parameter_analysis.py`: Parameter estimation with step-by-step calculations
-- `DERIVATION.md`: Mathematical derivation
-
-## Installation
-
-```bash
-pip install -r requirements.txt
-```
-
-Requires Python 3.7+.
-
-## Usage
-
-### Complete Demo
-
-```bash
-python3 parameter_analysis.py
-```
-
-Generates synthetic OU process data, estimates parameters, compares estimation methods, builds trading strategy, generates signals, runs backtest, and saves visualization to `ou_analysis.png`.
-
-### Parameter Analysis
-
-```bash
-python3 parameter_analysis.py
-```
-
-Shows step-by-step parameter estimation calculations.
-
-## Parameter Estimation
-
-### Theta (θ)
-
-Formula: θ = -ln(ρ) / Δt
-
-Where ρ is lag-1 autocorrelation: ρ = Corr(X_t, X_{t+1})
-
-### Mu (μ)
-
-Formula: μ = (1/n) Σ X_i
-
-Sample mean of the data.
-
-### Sigma (σ)
-
-Formula: σ² = (2θ / [n(1-e^(-2θΔt))]) Σ [X_{i+1} - X_i - μ(1-e^(-θΔt))]²
-
-Maximum Likelihood Estimator.
-
-## Parameter Estimation Methods
-
-1. **Maximum Likelihood Estimation (MLE)**: Uses autocorrelation and closed-form formulas
-2. **Regression Method**: Linear regression on lagged data
-3. **Ordinary Least Squares (OLS)**: Direct OLS estimation on discretized SDE
-
-## Trading Signal Generation
-
-### Stationary Variance
-
-```
 σ_stationary = √(σ² / (2θ))
-z = (X_t - μ) / σ_stationary
-```
 
-### Signal Rules
+k = threshold multiplier (default: 2.0)
 
-- **SELL**: z > 2.0
-- **BUY**: z < -2.0
-- **HOLD**: -2.0 ≤ z ≤ 2.0
+Files
 
-## Features
+ou_estimator.py: Parameter estimation (MLE, regression, OLS)
 
-- QuestDB methodology implementation
-- Multiple parameter estimation methods
-- Step-by-step parameter calculations
-- Trading signal generation using stationary variance
-- Position sizing based on deviation
-- Stop-loss calculation using stationary variance
-- Backtesting framework
-- Visualizations (6-panel analysis)
-- Mathematical derivation documentation
+ou_process.py: OU simulation
 
-## Output
+trading_strategy.py: OU trading signal generator
 
-Running `parameter_analysis.py` produces:
+parameter_analysis.py: Full OU workflow
 
-1. Parameter estimation analysis with autocorrelation, theta calculation, mu estimation, sigma calculation, and stationary distribution properties
-2. Estimation method comparison (MLE, Regression, OLS)
-3. Trading signal examples with z-score calculations
-4. Visualization saved to `ou_analysis.png` with price series, trading signals, deviation analysis, z-score, backtest performance, and autocorrelation function
+DERIVATION.md: Mathematical derivation
 
-## Mathematical Properties
+Regime Switching Model – Trend-Following vs Mean-Reverting Classification
 
-### Half-Life
+The regime-switching model identifies whether the market is currently trend-following (TF) or mean-reverting (MR) using a rolling AR(1) model on log returns. This regime information is later used to restrict OU trading to true mean-reverting environments.
 
-Expected time to revert halfway to mean:
-```
-t_{1/2} = ln(2) / θ
-```
+Overview
 
-### Stationary Variance
+We estimate a rolling AR(1) process:
 
-Long-term variance around mean:
-```
-Var_stationary = σ² / (2θ)
-```
+r_t = α + ϕ r_{t-1} + ε_t
 
-Used for signal generation as it represents the long-term distribution of the process.
 
-## Documentation
+Interpretation of the AR(1) coefficient:
 
-See `DERIVATION.md` for complete mathematical derivation.
+ϕ > 0 → Trend-Following (TF)
 
-## Quick Start
+ϕ < 0 → Mean-Reverting (MR)
 
-1. Install: `pip install -r requirements.txt`
-2. Run: `python3 parameter_analysis.py`
+|ϕ| small → Neutral
 
-## Troubleshooting
+Default configuration:
 
-**"ModuleNotFoundError"**: Run `pip install -r requirements.txt`
+Rolling window: 20 days
 
-**"python3: command not found"**: Use `python` instead
+Threshold: ±0.05
 
-**Visualization not showing**: Check that `ou_analysis.png` was created in the same directory
+A forward shift is applied so that the regime detected at time t is used for trading at t+1, preventing look-ahead bias.
+
+Files
+
+forward.py: Rolling AR(1) regime classification
+
+Computes φ for each window
+
+Labels: MR, TF, or Neutral
+
+Returns a regime time series suitable for trading
+
+Usage
+python3 forward.py
+
+
+Produces:
+
+AR(1) coefficient series
+
+Vector of MR/TF/Neutral labels
+
+Regime plot overlayed on price (if enabled)
+
+OU Process Applied to Mean-Reverting Regimes
+
+A more robust trading approach is to apply the OU mean-reversion strategy only during MR regimes, as detected by the AR(1) model. This prevents OU trades in trending environments where mean reversion is unlikely to hold.
+
+Overview
+
+The OU strategy is activated only when:
+
+MR_streak ≥ 3
+
+
+This ensures the market has shown consistent mean-reversion behavior before entering OU trades.
+
+Methodology
+
+Run regime detection (forward.py)
+
+Track MR streak length
+
+When MR_streak ≥ 3:
+
+Fit a rolling OU model (40-day default)
+
+Compute μ, σ, θ
+
+Compute stationary σ
+
+Compute z-scores
+
+Use dynamic thresholding:
+
+k = 80th percentile of |z| over the window
+
+Generate trades:
+
+Short when price > μ + kσ
+
+Long when price < μ – kσ
+
+Exit trades when:
+
+Price reverts halfway to μ, or
+
+Market exits MR regime
+
+Files
+
+run_regime_ou.py: OU applied only in MR regimes
+
+Outputs returns, Sharpe, drawdown
+
+Shows a full trade log (entry, exit, side, pnl)
+
+Usage
+python3 run_regime_ou.py
+
+Hybrid Strategy – OU in MR Regimes + Long in TF Regimes
+
+This model adapts trading behavior to the market structure:
+
+Use OU mean-reversion during MR periods
+
+Hold a long trend-following position during TF periods
+
+Stay flat during neutral periods
+
+This produces a strategy that performs well in both trending and reverting markets.
+
+Overview
+
+Regime → Action:
+
+MR → OU trading
+
+TF → Always long
+
+Neutral → No position
+
+This hybrid approach generally produces smoother equity curves and better Sharpe ratios.
+
+Example Results (USD/CAD – 6 months)
+
+Hybrid Strategy:
+
+Total return: 2.23%
+
+Sharpe: 1.50
+
+Max drawdown: -1.27%
+
+4 OU trades, 75% win rate
+
+Buy & Hold:
+
+Total return: 2.54%
+
+Sharpe: 1.17
+
+Max drawdown: -2.01%
+
+Files
+
+withTF.py: Hybrid OU(MR) + long(TF) strategy
+
+Includes full backtest statistics
+
+Prints trade log and equity curve
+
+Usage
+python3 withTF.py
+
+Project Structure
+Mean-Reversion-Strats/
+│
+├── ou_estimator.py
+├── ou_process.py
+├── trading_strategy.py
+├── parameter_analysis.py
+│
+├── forward.py
+├── run_regime_ou.py
+├── withTF.py
+│
+├── DERIVATION.md
+├── requirements.txt
+└── README.md
+
+Quick Start
+
+Install packages:
+
+pip install -r requirements.txt
+
+
+Run pure OU demo:
+
+python3 parameter_analysis.py
+
+
+Run regime classifier:
+
+python3 forward.py
+
+
+Run OU only in MR:
+
+python3 run_regime_ou.py
+
+
+Run hybrid OU + TF:
+
+python3 withTF.py
+
+Troubleshooting
+
+ModuleNotFoundError
+Install dependencies:
+
+pip install -r requirements.txt
+
+
+python3 not found
+Use:
+
+python parameter_analysis.py
+
+
+Plots not saving
+Check working directory for PNG outputs.
