@@ -156,6 +156,9 @@ This combines the OU model with regime switching.
 - Long exit: price → μ − 0.5σ  
 
 ### File
+<img width="1440" height="873" alt="image" src="https://github.com/user-attachments/assets/bf96c8ea-ce41-4346-9b2c-4d7b762cc34e" />
+
+
 
 - `run_regime_ou.py`: OU model executed only inside MR segments
 - <img width="1976" height="1170" alt="image" src="https://github.com/user-attachments/assets/a51435cd-d943-4f09-864f-2d7f79ba622f" />
